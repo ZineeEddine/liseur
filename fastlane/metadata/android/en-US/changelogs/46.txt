@@ -1,0 +1,1 @@
+fix: Match book dark mode to the reading theme, Keep selection handles usable while dragging, Count other devices reading on the stats widget
