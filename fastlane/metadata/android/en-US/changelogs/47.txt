@@ -1,0 +1,1 @@
+You can now browse additional remote without merging them with your main server. You can download individual books or full categories after viewing download sizes, and downloaded books keep their reading progress local so your main server is unaffected. Project Gutenberg can now be browsed by language and category directly under remote libraries.
