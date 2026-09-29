@@ -397,6 +397,18 @@ attaches it to the release. Signing is what that environment must hold:
 `LISEUR_KEY_ALIAS`, `LISEUR_KEY_PASSWORD` and, for the release notes,
 `GEMINI_API_KEY`. Without them there is no release.
 
+If a workflow failure stops publication, recover the existing tag with the
+fixed workflow on `main`, without moving the tag or bumping the version:
+
+```bash
+gh workflow run release.yml --ref main -f release_tag=v0.20.0
+```
+
+This builds the original tagged source. Once GitHub has published the APK,
+run `hack/release --fdroid-only 0.20.0` to finish the F-Droid submission.
+Rerunning the failed Actions run uses its original workflow, so it will not
+pick up a workflow fix committed afterwards.
+
 `LISEUR_PLAY_SERVICE_ACCOUNT_JSON` is the odd one out. It buys the third
 channel rather than the release itself, and the workflow skips Google
 Play entirely when it is absent. `hack/release` uploads it with the rest

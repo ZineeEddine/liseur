@@ -81,6 +81,7 @@ check: test lint build verify-release-tools
 
 verify-release-tools: verify-fdroid-tags
 	hack/test-prune-prereleases
+	hack/test-release-apk-verification
 
 verify-fdroid-tags:
 	hack/test-fdroid-tags
