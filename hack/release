@@ -6,6 +6,9 @@ readonly GH_REPO="chmouel/liseur"
 readonly APP_ID="com.chmouel.liseur"
 readonly FDROID_PROJECT="fdroid%2Ffdroiddata"
 readonly FDROID_FORK_PROJECT="chmouel%2Ffdroiddata"
+# Written over the metadata's Categories on every submission, separated
+# by `|`. Names must exist in fdroiddata's config/categories.yml.
+readonly FDROID_CATEGORIES="Cloud Storage & File Sync|Ebook Reader|Reading"
 readonly FDROID_TAG_POLICY_SCRIPT="hack/verify-fdroid-tags"
 readonly BUILD_FILE="app/build.gradle.kts"
 readonly RELEASE_WAIT_SECONDS=1800
@@ -996,7 +999,7 @@ PY
         skip_entry=1
     fi
     awk -v version="$version" -v code="$version_code" -v commit="$commit_sha" \
-        -v skip_entry="$skip_entry" '
+        -v skip_entry="$skip_entry" -v categories="$FDROID_CATEGORIES" '
         function entry() {
             if (!skip_entry) {
                 print "  - versionName: " version
@@ -1008,6 +1011,15 @@ PY
             }
             print ""
             inb = 0
+        }
+        incat && /^  - / { next }
+        { incat = 0 }
+        /^Categories:/ {
+            print
+            n = split(categories, names, "|")
+            for (i = 1; i <= n; i++) print "  - " names[i]
+            incat = 1
+            next
         }
         /^Builds:/ { print; inb = 1; next }
         inb && /^$/ { next }
@@ -1024,7 +1036,19 @@ PY
     # advisory: it flags things a human put there on purpose.
     (cd "$workdir" && "$fdroid_bin" rewritemeta "$APP_ID" >/dev/null 2>&1) ||
         die "fdroid rewritemeta rejected the updated metadata"
-    (cd "$workdir" && "$fdroid_bin" lint "$APP_ID") || true
+    # lint only knows the categories listed in fdroiddata's
+    # config/categories.yml; without it, every category reads as invalid.
+    # Its icon: lines name image files lint would try to copy, so they go.
+    mkdir -p "$workdir/config"
+    if gitlab_api_get \
+        "projects/$FDROID_PROJECT/repository/files/config%2Fcategories.yml?ref=master" |
+        jq -r .content | base64 --decode | sed '/^[[:space:]]*icon:/d' \
+            > "$workdir/config/categories.yml" &&
+        [[ -s "$workdir/config/categories.yml" ]]; then
+        (cd "$workdir" && "$fdroid_bin" lint "$APP_ID") || true
+    else
+        printf 'F-Droid: could not fetch config/categories.yml; lint skipped.\n'
+    fi
 
     local actions
     actions=$(jq -n --arg path "$metadata_path" \
