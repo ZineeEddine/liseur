@@ -171,11 +171,10 @@ jobs:
           fingerprint=$(printf '%s' "$RELEASE_CERTIFICATE_SHA256" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g; s/:$//')
           {
             printf '\n### Verify the APK\n\n'
-            printf 'Package name and signing certificate SHA-256 fingerprint (for [AppVerifier](https://github.com/soupslurpr/AppVerifier)):\n\n'
+            printf 'Package name and signing certificate SHA-256 fingerprint (for example using [AppVerifier](https://github.com/soupslurpr/AppVerifier)):\n\n'
             printf '```text\ncom.chmouel.liseur\n%s\n```\n\n' "$fingerprint"
             printf 'To verify the downloaded APK with Android SDK build tools:\n\n'
             printf '```sh\napksigner verify --print-certs liseur-%s.apk\n```\n\n' "$RELEASE_TAG"
-            printf 'Verification must succeed and the certificate SHA-256 digest must match the fingerprint above (ignoring colons and letter case). This is the certificate fingerprint, not the APK file checksum.\n'
           } >> "$notes"
           printf 'RELEASE_NOTES=%s\n' "$notes" >> "$GITHUB_ENV"
           cat "$notes"
