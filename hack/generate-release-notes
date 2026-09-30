@@ -38,14 +38,53 @@ cleanup() {
 usage() {
     cat <<'EOF'
 Usage:
-  hack/generate-release-notes [--output FILE] [TAG]
+  hack/generate-release-notes [--output FILE] [--copilot] [--no-fallback] [TAG]
+  hack/generate-release-notes [--output FILE] [--copilot] [--no-fallback] \
+      --range RANGE --changelog FILE
 
 Writes release notes for TAG (the current tag, or the newest one, by
-default) to FILE, or to standard output.
+default) to FILE, or to standard output. With --range and --changelog
+it writes them before the tag exists, from the commits in RANGE and the
+F-Droid changelog in FILE; hack/release uses this.
 
-GEMINI_API_KEY enables the generated notes. Without it the F-Droid
-changelog for the release is used instead.
+GEMINI_API_KEY enables the generated notes. --copilot tries
+`copilot -p` (LISEUR_NOTES_COPILOT_MODEL, default gpt-6-luna) when
+Gemini is unavailable or fails. Without either, the F-Droid changelog
+is used instead, unless --no-fallback is given: then nothing is written
+and the exit status is 3.
 EOF
+}
+
+# Copilot gets the prompt and nothing else: an empty directory to run in
+# and no tools, so it has nothing to look at or change.
+generate_with_copilot() {
+    local prompt=$1 output=$2
+    local model="${LISEUR_NOTES_COPILOT_MODEL:-gpt-6-luna}" dir status=0
+
+    if ! command -v copilot >/dev/null; then
+        printf 'Copilot: copilot is not installed.\n' >&2
+        return 1
+    fi
+
+    printf 'Asking copilot (%s) for the release notes.\n' "$model" >&2
+    dir=$(mktemp -d -p "$workdir")
+    (
+        cd "$dir" &&
+            timeout 300 copilot -p "$(cat "$prompt")" \
+                --model "$model" -s --no-color \
+                --no-custom-instructions --disable-builtin-mcps \
+                --no-auto-update --available-tools= </dev/null
+    ) > "$output" || status=$?
+
+    if ((status == 124)); then
+        printf 'Copilot timed out after 300s.\n' >&2
+    elif ((status != 0)); then
+        printf 'Copilot exited with status %s.\n' "$status" >&2
+    elif ! grep -q '[^[:space:]]' "$output"; then
+        printf 'Copilot returned no text.\n' >&2
+        status=1
+    fi
+    return $status
 }
 
 changelog_for_tag() {
@@ -275,7 +314,8 @@ generate() {
 }
 
 main() {
-    local output="" tag="${TAG:-}"
+    local output="" tag="${TAG:-}" range="" changelog_file=""
+    local use_copilot=false fallback=true
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -283,6 +323,24 @@ main() {
             output=${2:-}
             [[ -n "$output" ]] || die "--output needs a file"
             shift 2
+            ;;
+        --range)
+            range=${2:-}
+            [[ -n "$range" ]] || die "--range needs a revision range"
+            shift 2
+            ;;
+        --changelog)
+            changelog_file=${2:-}
+            [[ -n "$changelog_file" ]] || die "--changelog needs a file"
+            shift 2
+            ;;
+        --copilot)
+            use_copilot=true
+            shift
+            ;;
+        --no-fallback)
+            fallback=false
+            shift
             ;;
         -h | --help)
             usage
@@ -303,43 +361,69 @@ main() {
         command -v "$command" >/dev/null || die "missing required command: $command"
     done
 
-    if [[ -z "$tag" ]]; then
-        tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' \
-            --exclude '*-rc.*' --exclude '*-test.*') ||
-            die "no tag to write notes for"
+    if [[ -n "$range" && -z "$changelog_file" ]] ||
+        [[ -z "$range" && -n "$changelog_file" ]]; then
+        die "--range and --changelog go together"
     fi
-    git rev-parse --verify --quiet "$tag^{commit}" >/dev/null ||
-        die "unknown tag: $tag"
+    local changelog previous notes pull_requests
+    if [[ -n "$range" ]]; then
+        [[ -z "$tag" ]] || die "give either a TAG or --range and --changelog"
+        git rev-list --quiet "$range" >/dev/null 2>&1 ||
+            die "unknown revision range: $range"
+        changelog=$(cat "$changelog_file") ||
+            die "cannot read $changelog_file"
+        [[ -n "$changelog" ]] || die "$changelog_file is empty"
+    else
+        if [[ -z "$tag" ]]; then
+            tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' \
+                --exclude '*-rc.*' --exclude '*-test.*') ||
+                die "no tag to write notes for"
+        fi
+        git rev-parse --verify --quiet "$tag^{commit}" >/dev/null ||
+            die "unknown tag: $tag"
+
+        changelog=$(changelog_for_tag "$tag") ||
+            die "no F-Droid changelog in $tag"
+        [[ -n "$changelog" ]] || die "the F-Droid changelog in $tag is empty"
+
+        previous=$(previous_tag "$tag")
+        range="$tag"
+        [[ -z "$previous" ]] || range="$previous..$tag"
+    fi
 
     workdir=$(mktemp -d)
     trap cleanup EXIT
 
-    local changelog previous range notes pull_requests
-    changelog=$(changelog_for_tag "$tag") ||
-        die "no F-Droid changelog in $tag"
-    [[ -n "$changelog" ]] || die "the F-Droid changelog in $tag is empty"
-
-    previous=$(previous_tag "$tag")
-    range="$tag"
-    [[ -z "$previous" ]] || range="$previous..$tag"
-
     notes=$(mktemp -p "$workdir")
 
-    if [[ -z "${GEMINI_API_KEY:-}" ]]; then
-        printf 'No GEMINI_API_KEY: using the changelog.\n' >&2
-        printf '%s\n' "$changelog" > "$notes"
-    else
+    local generated=false
+    if [[ -n "${GEMINI_API_KEY:-}" || "$use_copilot" == true ]]; then
         local prompt
         prompt=$(mktemp -p "$workdir")
         pull_requests=$(mktemp -p "$workdir")
         pull_requests_for_range "$range" "$pull_requests"
         build_prompt "$range" "$prompt" "$changelog" "$pull_requests"
-        if ! generate "$prompt" "$notes"; then
-            printf 'Could not generate notes: using the changelog.\n' >&2
-            printf '%s\n' "$changelog" > "$notes"
-        else
-            normalize_screenshots "$notes"
+        if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+            printf 'No GEMINI_API_KEY.\n' >&2
+        elif generate "$prompt" "$notes"; then
+            generated=true
         fi
+        if [[ "$generated" == false && "$use_copilot" == true ]] &&
+            generate_with_copilot "$prompt" "$notes"; then
+            generated=true
+        fi
+    else
+        printf 'No GEMINI_API_KEY.\n' >&2
+    fi
+
+    if [[ "$generated" == true ]]; then
+        normalize_screenshots "$notes"
+    elif [[ "$fallback" == true ]]; then
+        printf 'Could not generate notes: using the changelog.\n' >&2
+        printf '%s\n' "$changelog" > "$notes"
+    else
+        printf 'Could not generate notes.\n' >&2
+        exit 3
     fi
 
     if [[ -n "$output" ]]; then

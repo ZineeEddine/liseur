@@ -369,7 +369,11 @@ It shows what has landed since the last release, grouped by commit type,
 says so when the screens have changed since the screenshots were last
 taken, offers the next patch, minor and major version, and opens an
 editor on a changelog drafted from those same commits. Correct the
-draft, save, and confirm.
+draft, save, and confirm. The commits are also listed in the editor as
+comments. The draft comes from Gemini; when Gemini fails, the script
+says why and asks `copilot -p` instead, using `gpt-6-luna` unless
+`LISEUR_NOTES_COPILOT_MODEL` names another model. If neither can draft
+it, it offers to try again before opening the editor without a draft.
 
 The version can also be given outright, which is what CI and scripts
 want:
@@ -738,10 +742,20 @@ thing:
   width (`SCREENSHOT_WIDTH` in the script) before the notes are written,
   so a full-size PR image cannot blow the page apart.
 
-Without `GEMINI_API_KEY`, or if the request fails, the generated notes
-fall back to the hand-written changelog, so a release is never held up
-by this. The key comes from `pass` under `google/gemini-api` and is
-uploaded to the release environment by `hack/release --sync-secrets`.
+`hack/release` writes these notes before tagging a final release, with
+`--range` and `--changelog`, and opens them in the editor for review.
+They are committed with the release as
+`docs/release-notes/vX.Y.Z.md`, and the release workflow publishes that
+file as it is. When Gemini fails locally, `--copilot` asks
+`copilot -p` (`gpt-6-luna`, or `LISEUR_NOTES_COPILOT_MODEL`). If both
+fail, or the file is saved empty, nothing is committed and the workflow
+generates the notes itself as below.
+
+In the workflow, without `GEMINI_API_KEY` or if the request fails, the
+generated notes fall back to the hand-written changelog, so a release
+is never held up by this. The key comes from `pass` under
+`google/gemini-api` and is uploaded to the release environment by
+`hack/release --sync-secrets`.
 The generator keeps the prompt compact by omitting commit diffstats and
 retries transient Gemini or network failures with bounded backoff before
 using that fallback.

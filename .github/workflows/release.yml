@@ -159,7 +159,14 @@ jobs:
                 "$range"
             } > "$notes"
           else
-            hack/generate-release-notes --output "$notes" "$RELEASE_TAG"
+            # hack/release writes and reviews them before tagging when it
+            # can; generate them here only when the tag has none.
+            prewritten="docs/release-notes/$RELEASE_TAG.md"
+            if [[ -s "$prewritten" ]]; then
+              cp "$prewritten" "$notes"
+            else
+              hack/generate-release-notes --output "$notes" "$RELEASE_TAG"
+            fi
           fi
           fingerprint=$(printf '%s' "$RELEASE_CERTIFICATE_SHA256" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g; s/:$//')
           {

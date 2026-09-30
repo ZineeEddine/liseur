@@ -15,6 +15,7 @@ readonly RELEASE_POLL_SECONDS=20
 readonly FDROID_PIPELINE_WAIT_SECONDS=420
 readonly FDROID_PIPELINE_POLL_SECONDS=15
 readonly CHANGELOG_DIR="fastlane/metadata/android/en-US/changelogs"
+readonly RELEASE_NOTES_DIR="docs/release-notes"
 readonly PASS_KEYSTORE="android/liseur.keystore.p12"
 readonly PASS_KEYSTORE_PASSWORD="android/liseur.keystore-password"
 readonly PASS_KEY_ALIAS="android/liseur.keystore-alias"
@@ -24,6 +25,7 @@ readonly LOCAL_SIGNING_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/liseur/signing"
 readonly LOCAL_KEYSTORE="$LOCAL_SIGNING_DIR/release.p12"
 readonly KEYSTORE_PROPERTIES="keystore.properties"
 readonly NOTES_MODEL="gemini-3.6-flash"
+readonly NOTES_COPILOT_MODEL="${LISEUR_NOTES_COPILOT_MODEL:-gpt-6-luna}"
 readonly REQUIRED_SECRETS=(
     LISEUR_KEYSTORE_BASE64
     LISEUR_KEYSTORE_PASSWORD
@@ -409,29 +411,92 @@ bump_version() {
 }
 
 # The changelog is what F-Droid shows, so it is worth a moment of the
-# maintainer's attention. Gemini drafts it from the commits; the editor
-# is where it gets fixed.
+# maintainer's attention. Gemini drafts it from the commits, Copilot
+# steps in when Gemini cannot, and the editor is where it gets fixed. A
+# failed draft says why on stderr.
 draft_release_notes() {
-    local range=$1 draft=$2
-    local key request response
+    draft_with_gemini "$@" && return
+    printf 'Falling back to copilot (%s)...\n' "$NOTES_COPILOT_MODEL" >&2
+    draft_with_copilot "$@"
+}
 
-    key=$(pass show "$PASS_GEMINI_KEY" 2>/dev/null) || return 1
-    [[ -n "$key" ]] || return 1
+release_notes_prompt() {
+    local range=$1
+    printf '%s\n\n' "Write the F-Droid changelog for the next release of Liseur, an Android EPUB books reader and calibre-web client." \
+        "It is shown in a store listing to people who read books, so say what they can now do, in plain unexcited prose. No headings, no bullets, no marketing, no emoji. At most 480 characters. Leave out anything they would not notice: dependency bumps, CI, refactoring, documentation." \
+        "The commits:"
+    git log "$range" --no-decorate --pretty='- %s%n%b'
+}
+
+# Copilot runs from an empty directory with no tools: it gets the
+# commits in the prompt and has nothing to look at or change.
+draft_with_copilot() {
+    local range=$1 draft=$2
+    local workdir prompt status=0
+
+    if ! command -v copilot >/dev/null; then
+        printf 'Copilot draft: copilot is not installed.\n' >&2
+        return 1
+    fi
+
+    prompt="$(release_notes_prompt "$range")
+Reply with the changelog text only."
+    workdir=$(mktemp -d)
+    (
+        cd "$workdir" &&
+            timeout 180 copilot -p "$prompt" \
+                --model "$NOTES_COPILOT_MODEL" -s --no-color \
+                --no-custom-instructions --disable-builtin-mcps \
+                --no-auto-update --available-tools= </dev/null
+    ) > "$draft" || status=$?
+    rm -rf "$workdir"
+
+    if ((status == 124)); then
+        printf 'Copilot draft: timed out after 180s.\n' >&2
+    elif ((status != 0)); then
+        printf 'Copilot draft: copilot exited with status %s.\n' "$status" >&2
+    elif ! grep -q '[^[:space:]]' "$draft"; then
+        printf 'Copilot draft: no text in the reply.\n' >&2
+        status=1
+    fi
+    return $status
+}
+
+draft_with_gemini() {
+    local range=$1 draft=$2
+    local key request response http_code curl_error status=1
+
+    if ! key=$(pass show "$PASS_GEMINI_KEY" 2>/dev/null) || [[ -z "$key" ]]; then
+        printf 'Gemini draft: could not read %s from pass.\n' \
+            "$PASS_GEMINI_KEY" >&2
+        return 1
+    fi
 
     request=$(mktemp)
     response=$(mktemp)
-    jq -n --rawfile log <(git log "$range" --no-decorate --pretty='- %s%n%b') \
-        '{contents: [{parts: [{text: ("Write the F-Droid changelog for the next release of Liseur, an Android EPUB books reader and calibre-web client.\n\nIt is shown in a store listing to people who read books, so say what they can now do, in plain unexcited prose. No headings, no bullets, no marketing, no emoji. At most 480 characters. Leave out anything they would not notice: dependency bumps, CI, refactoring, documentation.\n\nThe commits:\n\n" + $log)}]}]}' \
-        > "$request"
+    jq -n --rawfile text <(release_notes_prompt "$range") \
+        '{contents: [{parts: [{text: $text}]}]}' > "$request"
 
-    curl -fsS --max-time 120 \
+    printf 'Asking %s for a changelog draft...\n' "$NOTES_MODEL" >&2
+    if ! http_code=$(curl -sS --max-time 120 -o "$response" -w '%{http_code}' \
         "https://generativelanguage.googleapis.com/v1beta/models/$NOTES_MODEL:generateContent" \
         -H "Content-Type: application/json" \
         -H "x-goog-api-key: $key" \
-        -X POST -d @"$request" > "$response" 2>/dev/null &&
-        jq -er '.candidates[0].content.parts | map(.text // "") | join("")
-            | select(length > 0)' "$response" > "$draft"
-    local status=$?
+        -X POST -d @"$request" 2>&1); then
+        curl_error=${http_code##*curl: }
+        printf 'Gemini draft: request failed: %s\n' "${curl_error:-unknown error}" >&2
+    elif [[ "$http_code" != 2* ]]; then
+        printf 'Gemini draft: HTTP %s: %s\n' "$http_code" \
+            "$(jq -r '.error.message // empty' "$response" 2>/dev/null |
+                head -n 1)" >&2
+    elif jq -er '.candidates[0].content.parts // [] | map(.text // "")
+        | join("") | select(length > 0)' "$response" > "$draft" 2>/dev/null; then
+        status=0
+    else
+        printf 'Gemini draft: no text in the reply (finishReason: %s).\n' \
+            "$(jq -r '.candidates[0].finishReason // .promptFeedback.blockReason // "none"' \
+                "$response" 2>/dev/null)" >&2
+    fi
 
     rm -f "$request" "$response"
     return $status
@@ -442,14 +507,20 @@ edit_release_notes() {
     local file editor
 
     file=$(mktemp --suffix=.txt)
-    if ! draft_release_notes "$range" "$file"; then
-        printf '' > "$file"
-    fi
+    until draft_release_notes "$range" "$file"; do
+        if [[ "$assume_yes" == true ]] ||
+            ! confirm_prompt "Retry the changelog draft?"; then
+            printf '' > "$file"
+            break
+        fi
+    done
 
     {
         printf '\n'
         printf '# The changelog F-Droid will show, at most 500 characters.\n'
         printf '# Lines starting with # are dropped. An empty file aborts.\n'
+        printf '#\n# Changes in %s:\n#\n' "$range"
+        show_changes_since "$range" | sed -E 's/^/# /; s/[[:space:]]+$//'
     } >> "$file"
 
     editor=${VISUAL:-${EDITOR:-vi}}
@@ -481,14 +552,50 @@ warn_about_stale_screenshots() {
     printf '  hack/screenshots --setup\n\n'
 }
 
+last_final_tag() {
+    git describe --tags --abbrev=0 \
+        --match 'v[0-9]*.[0-9]*.[0-9]*' \
+        --exclude '*-rc.*' --exclude '*-test.*' 2>/dev/null || true
+}
+
+# The GitHub release is immutable once CI publishes it, and CI's Gemini
+# call can fail as easily as ours. So the long notes are written here,
+# reviewed, and committed with the release; CI uses them when they are
+# in the tag and writes its own otherwise.
+prepare_github_notes() {
+    local range=$1 output=$2
+    local changelog key status=0 editor
+
+    changelog=$(mktemp)
+    printf '%s\n' "$release_notes" > "$changelog"
+    key=$(pass show "$PASS_GEMINI_KEY" 2>/dev/null) || key=""
+    printf 'Writing the GitHub release notes for %s...\n' "$range"
+    GEMINI_API_KEY="$key" hack/generate-release-notes --copilot --no-fallback \
+        --range "$range" --changelog "$changelog" --output "$output" ||
+        status=$?
+    rm -f "$changelog"
+    if ((status != 0)); then
+        printf 'GitHub release notes: none written here; CI will write them.\n'
+        return 1
+    fi
+
+    if [[ -t 0 && -t 1 && "$assume_yes" != true ]]; then
+        printf 'Opening the GitHub release notes. Save an empty file to leave them to CI.\n'
+        editor=${VISUAL:-${EDITOR:-vi}}
+        "$editor" "$output" || die "the editor exited without saving"
+    fi
+    if ! grep -q '[^[:space:]]' "$output"; then
+        printf 'GitHub release notes: left empty; CI will write them.\n'
+        return 1
+    fi
+}
+
 choose_release() {
     local current last_tag range choice
     current=$(read_version_name)
     [[ -n "$current" ]] || die "could not read the current app version"
 
-    last_tag=$(git describe --tags --abbrev=0 \
-        --match 'v[0-9]*.[0-9]*.[0-9]*' \
-        --exclude '*-rc.*' --exclude '*-test.*' 2>/dev/null || true)
+    last_tag=$(last_final_tag)
     if [[ -n "$last_tag" ]]; then
         range="$last_tag..HEAD"
         printf '\nSince %s, %s ago:\n\n' "$last_tag" \
@@ -1199,17 +1306,35 @@ if [[ "$current_version" != "$version" ]]; then
     new_version_code=$((new_version_code + 1))
     changelog_path="$CHANGELOG_DIR/$new_version_code.txt"
     [[ ! -e "$changelog_path" ]] || die "$changelog_path already exists"
+    github_notes_path="$RELEASE_NOTES_DIR/$tag.md"
+    [[ ! -e "$github_notes_path" ]] || die "$github_notes_path already exists"
+
+    previous_tag=$(last_final_tag)
+    github_notes=$(mktemp)
+    trap 'rm -f "${github_notes:-}"' EXIT
+    if ! prepare_github_notes "${previous_tag:+$previous_tag..}HEAD" "$github_notes"; then
+        rm -f "$github_notes"
+        github_notes=""
+    fi
 
     printf 'Release %s as versionCode %s.\n' "$version" "$new_version_code"
     printf 'Release notes: %s\n' "$release_notes"
+    if [[ -n "$github_notes" ]]; then
+        printf 'GitHub release notes: %s\n' "$github_notes_path"
+    else
+        printf 'GitHub release notes: written by CI\n'
+    fi
     confirm
 
+    # Only paths that get staged: git restore undoes nothing if one of
+    # them is unknown to it.
+    release_files=("$BUILD_FILE" "$changelog_path")
     rollback=true
     rollback_changes() {
         if [[ "$rollback" == true ]]; then
-            git restore --staged "$BUILD_FILE" "$changelog_path" 2>/dev/null || true
+            git restore --staged "${release_files[@]}" 2>/dev/null || true
             git restore "$BUILD_FILE" 2>/dev/null || true
-            rm -f "$changelog_path"
+            rm -f "$changelog_path" "$github_notes_path"
         fi
     }
     trap rollback_changes ERR INT TERM
@@ -1221,13 +1346,18 @@ if [[ "$current_version" != "$version" ]]; then
         "s/^([[:space:]]*)versionName = \"[^\"]+\"$/\\1versionName = \"$version\"/" \
         "$BUILD_FILE"
     printf '%s\n' "$release_notes" > "$changelog_path"
+    if [[ -n "$github_notes" ]]; then
+        mkdir -p "$RELEASE_NOTES_DIR"
+        mv "$github_notes" "$github_notes_path"
+        release_files+=("$github_notes_path")
+    fi
 
     [[ $(read_version_name) == "$version" ]] || die "versionName update failed"
     [[ $(read_version_code) == "$new_version_code" ]] || die "versionCode update failed"
 
     ./gradlew testDebugUnitTest lintDebug assembleRelease --console=plain
 
-    git add "$BUILD_FILE" "$changelog_path"
+    git add "${release_files[@]}"
     git commit -m "chore: release $tag"
 
     rollback=false
