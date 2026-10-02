@@ -267,11 +267,12 @@ class ReaderPreferencesRepository(private val store: DataStore<Preferences>) {
  * this version does not know — [PageTurnStyle.fromId] answers that with
  * the default, and falling through to the old boolean instead would let
  * a setting from a newer version be quietly rewritten by a much older
- * one. [legacyAnimation] only ever said yes or no, and no meant the
- * instant jump.
+ * one. [legacyAnimation] only ever said yes or no: yes meant the lifted
+ * page and no the instant jump, whatever the default has since become.
  */
 internal fun pageTurnStyleFrom(stored: String?, legacyAnimation: Boolean?): PageTurnStyle = when {
     stored != null -> PageTurnStyle.fromId(stored)
+    legacyAnimation == true -> PageTurnStyle.LIFT
     legacyAnimation == false -> PageTurnStyle.NONE
     else -> PageTurnStyle.Default
 }

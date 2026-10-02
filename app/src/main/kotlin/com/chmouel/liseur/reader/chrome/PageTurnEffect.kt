@@ -8,7 +8,7 @@ import android.view.PixelCopy
 import android.view.View
 import android.view.Window
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -54,14 +55,14 @@ class PageTurnEffectState(private val scope: CoroutineScope) {
         page = bitmap
         scope.launch {
             progress.snapTo(0f)
-            progress.animateTo(1f, tween(durationMillis = 350, easing = PageEasing))
+            progress.animateTo(1f, tween(durationMillis = LIFT_DURATION_MS, easing = FastOutSlowInEasing))
             page = null
         }
     }
 
     private companion object {
-        /** Quick lift-off, gentle landing. */
-        val PageEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+        /** An unhurried glide, closer to Google Play Books than a flick. */
+        const val LIFT_DURATION_MS = 650
     }
 }
 
@@ -73,7 +74,11 @@ fun PageTurnOverlay(state: PageTurnEffectState, modifier: Modifier = Modifier) {
         bitmap = page,
         contentDescription = null,
         contentScale = ContentScale.FillBounds,
+        // Clipped to the page, so that the elevation shadow only falls on
+        // the page it uncovers. Unclipped, it spilled a grey band over the
+        // footer below the page, which flashed on every turn on light pages.
         modifier = modifier
+            .clipToBounds()
             .fillMaxSize()
             .graphicsLayer {
                 val direction = if (state.slideLeft) -1f else 1f

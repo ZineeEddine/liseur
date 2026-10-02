@@ -383,7 +383,7 @@ class PageTurnDragTest {
     }
 
     private class Harness(
-        style: PageTurnStyle = PageTurnStyle.LIFT,
+        style: PageTurnStyle = PageTurnStyle.NONE,
         canTurn: Boolean = true,
         canTurnNow: (() -> Boolean)? = null,
         interactive: Boolean = true,

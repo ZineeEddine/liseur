@@ -455,7 +455,7 @@ enum class PageTurnStyle(val id: String) {
     ;
 
     companion object {
-        val Default = LIFT
+        val Default = NONE
 
         fun fromId(id: String?): PageTurnStyle = entries.firstOrNull { it.id == id } ?: Default
     }

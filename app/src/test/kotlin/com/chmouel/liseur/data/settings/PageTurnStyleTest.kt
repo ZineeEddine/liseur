@@ -17,14 +17,14 @@ class PageTurnStyleTest {
     }
 
     @Test
-    fun `a name from nowhere is the lifted page`() {
-        assertEquals(PageTurnStyle.LIFT, PageTurnStyle.fromId(null))
-        assertEquals(PageTurnStyle.LIFT, PageTurnStyle.fromId("flip"))
+    fun `a name from nowhere is the instant turn`() {
+        assertEquals(PageTurnStyle.NONE, PageTurnStyle.fromId(null))
+        assertEquals(PageTurnStyle.NONE, PageTurnStyle.fromId("flip"))
     }
 
     @Test
-    fun `a store that never had the setting turns pages the way it always did`() {
-        assertEquals(PageTurnStyle.LIFT, pageTurnStyleFrom(stored = null, legacyAnimation = null))
+    fun `a store without a page turn preference defaults to an instant turn`() {
+        assertEquals(PageTurnStyle.NONE, pageTurnStyleFrom(stored = null, legacyAnimation = null))
     }
 
     @Test
@@ -46,8 +46,8 @@ class PageTurnStyleTest {
     @Test
     fun `a style this version does not know still beats the old boolean`() {
         assertEquals(
-            PageTurnStyle.LIFT,
-            pageTurnStyleFrom(stored = "curl", legacyAnimation = false),
+            PageTurnStyle.Default,
+            pageTurnStyleFrom(stored = "curl", legacyAnimation = true),
         )
     }
 
