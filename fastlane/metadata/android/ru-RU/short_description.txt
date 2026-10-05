@@ -1,1 +1,1 @@
-Чтение EPUB с синхронизацией через ваш calibre-web, Komga или OPDS-сервер.
+Читалка EPUB и клиент для серверов calibre-web, Komga, BookOrbit и OPDS

@@ -1,35 +1,35 @@
-Liseur ist ein kostenloser, quelloffener EPUB-Reader für Android. Er liest Bücher aus einem Ordner auf deinem Handy und verbindet sich mit deinem eigenen calibre-web-, Komga- oder liseur-sync-Server, damit deine gesamte Bibliothek in einem Regal liegt. Keine Werbung, Tracker, Nutzungsanalyse oder Liseur-Kontopflicht. Der Netzwerkzugriff beschränkt sich auf die von dir gewählten Buchserver und Wörterbücher sowie auf Project Gutenberg, wenn du kostenlose Bücher hinzufügst.
+Liseur ist ein EPUB-Reader für Android auf Basis von Readium. Er liest Bücher aus lokalen Ordnern und ist außerdem ein Client für calibre-web, Komga, BookOrbit, liseur-sync und OPDS-Kataloge. Bücher aus allen Quellen landen im selben Regal.
 
-DEINE BIBLIOTHEK IN EINEM REGAL
+Lesen
 
-* Ordner auf dem Handy oder der SD-Karte, mit Buchcovern indexiert
-* calibre-web-, Komga-, liseur-sync- und OPDS-Kataloge im selben Regal, mit Wolkensymbol für Bücher auf dem Server
-* Reihen in Lesereihenfolge, mit Fortschritt und fehlenden Bänden auf einen Blick
-* Kostenlose Bücher von Project Gutenberg, damit du schon vor dem Verbinden eines Servers loslesen kannst
+* Blättern oder fortlaufendes Scrollen, pro Buch oder für die ganze Bibliothek
+* Mitgelieferte Schriften (Literata, Vollkorn, Atkinson Hyperlegible, Inter), die des Verlags oder eigene
+* Themen Hell, Sepia, Dunkel und Schwarz
+* Einstellbare Ränder, Zeilenabstand und Helligkeit
+* Automatisches Scrollen, das über Kapitelgrenzen weiterläuft
+* Fußzeile mit Seitenzahl, Rest des Kapitels und geschätzter Restlesezeit
+* E-Ink-Modus ohne Animationen, mit Refresh-Steuerung auf Onyx-Geräten
+* Markierungen in sechs Farben, Notizen und Lesezeichen, als Markdown exportierbar
+* Volltextsuche
+* Fußnoten öffnen sich in einem Popup
+* Wörterbuch über Wiktionary (standardmäßig aus) oder eine installierte Wörterbuch-App
 
-LIES, WIE DU MÖCHTEST
+Bibliothek
 
-* Seitenansicht oder fortlaufendes Scrollen, pro Buch oder für die ganze Bibliothek
-* Mitgelieferte freie Schriften (Literata, Vollkorn, Atkinson Hyperlegible und Inter) oder die Schrift des Verlags
-* Ränder, Zeilenabstand, Helligkeit und vier Lesethemen: hell, sepia, dunkel und schwarz für OLED-Bildschirme
-* Automatisches Scrollen in deinem Tempo, auch über Kapitelgrenzen hinweg
-* Fußzeile mit aktueller Seite, Rest des Kapitels und verbleibender Lesezeit
-* Aktualisierungsmodus für Onyx-E-Ink-Bildschirme
+* Lokale Ordner, auch auf der SD-Karte
+* Reihen in Lesereihenfolge gruppiert, fehlende Bände werden angezeigt
+* Eingebauter Project-Gutenberg-Browser
+* Startbildschirm-Widgets für das aktuelle Buch und die Lesezeit
+* ZIP-Sicherung von Einstellungen, Schriften, Lesepositionen und Anmerkungen
 
-LIES AUF JEDEM GERÄT WEITER
+Synchronisation
 
-* Synchronisierung deiner Leseposition über calibre-web, Komga oder liseur-sync bis zum genauen Satz
-* Ein OPDS-Katalog und ein kosync-Server als gemeinsame benutzerdefinierte Verbindung
-* Synchronisierung von Einstellungen und Lesestatistiken mit liseur-sync
-* Schließe das Buch auf dem Handy und lies auf dem Tablet weiter
+* Leseposition wird über calibre-web (Kobo-Sync), Komga, BookOrbit oder liseur-sync synchronisiert
+* Eine benutzerdefinierte Verbindung kombiniert einen beliebigen OPDS-Katalog mit einem beliebigen KOReader-Sync-Server (kosync)
+* Mit liseur-sync: Sicherung der Einstellungen pro Gerät und Lesestatistiken über alle Geräte
 
-MARKIERUNGEN, NOTIZEN UND WÖRTERBUCH
+Datenschutz
 
-* Markierungen in vier Farben, Notizen und Lesezeichen in einem Notizbuch pro Buch, das du als Markdown exportieren kannst
-* Suche im ganzen Buch mit direktem Sprung zur Textstelle
-* Fußnoten öffnen sich als Karte über der Seite
-* Definitionen aus Wiktionary oder einer Offline-Wörterbuch-App; Online-Abfragen bleiben aus, bis du sie einschaltest, und du wählst die Quelle
+Keine Werbung, keine Tracker, keine Nutzungsanalyse, kein Konto. Liseur verbindet sich nur mit den Servern, die du hinzufügst, mit der Wörterbuch-Seite, wenn du sie einschaltest, und mit Project Gutenberg, wenn du dort stöberst. Keine Google-Play-Dienste und keine proprietären Bibliotheken.
 
-FREIE SOFTWARE AUS ÜBERZEUGUNG
-
-Liseur basiert auf dem offenen Readium-Toolkit, ohne proprietäre Abhängigkeiten und ohne Google Play-Dienste. Quellcode, Fehlerberichte und Dokumentation: https://github.com/chmouel/liseur
+MIT-Lizenz. Quellcode und Issue-Tracker: https://github.com/chmouel/liseur

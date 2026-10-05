@@ -1,35 +1,35 @@
-Liseur is a free, open-source ebook reader for Android. It reads EPUB books from a folder on your phone, and it connects to your own calibre-web, Komga or liseur-sync server so your whole library lives on one shelf. No ads, no trackers, no analytics, no Liseur account. Network access is limited to the book servers and dictionary sources you choose, plus Project Gutenberg when you add free books.
+Liseur is an EPUB reader for Android built on the Readium toolkit. It reads books from local folders and is also a client for calibre-web, Komga, BookOrbit, liseur-sync and OPDS catalogs. Books from every source show up on the same shelf.
 
-YOUR LIBRARY, ONE SHELF
+Reading
 
-* Folders on your phone or SD card, indexed with covers
-* calibre-web, Komga, liseur-sync and OPDS catalogs merged into the same shelf, with a cloud badge on server books
-* Series grouped in reading order, with progress and missing volumes at a glance
-* Free books from Project Gutenberg to start you off, before you connect anything
+* Paginated or continuous scroll, per book or for the whole library
+* Bundled fonts (Literata, Vollkorn, Atkinson Hyperlegible, Inter), the publisher's fonts, or fonts you import
+* Light, sepia, dark and black themes
+* Adjustable margins, line spacing and brightness
+* Auto-scroll that continues across chapters
+* Footer with the page number, what is left of the chapter and estimated time left
+* E-ink mode without animations, with refresh control on Onyx devices
+* Highlights in six colours, notes and bookmarks, exportable as Markdown
+* Full-text search
+* Footnotes open in a popup
+* Dictionary lookup through Wiktionary (off by default) or an installed dictionary app
 
-READ YOUR WAY
+Library
 
-* Pages or continuous scrolling, per book or library-wide
-* Bundled open typefaces (Literata, Vollkorn, Atkinson Hyperlegible, Inter) or the publisher's own
-* Margins, line spacing, brightness and four reading themes: light, sepia, dark, and black for OLED screens
-* Auto-scroll at your pace, carrying on across chapters
-* A footer with the current page, what is left in the chapter, and time remaining
-* A refresh mode tuned for Onyx e-ink displays
+* Local folders, including the SD card
+* Series grouped in reading order, with missing volumes shown
+* Built-in Project Gutenberg browser
+* Home-screen widgets for the current book and reading time
+* ZIP backup of settings, fonts, reading positions and annotations
 
-YOUR PLACE FOLLOWS YOU
+Sync
 
-* Your reading position syncs across devices through calibre-web, Komga or liseur-sync, down to the exact sentence
-* Pair any OPDS catalog with any kosync server as a single Custom connection
-* Settings backup for each device and reading statistics across devices when you connect liseur-sync
-* Close the book on your phone and pick it up on your tablet
+* Reading position syncs through calibre-web (Kobo sync), Komga, BookOrbit or liseur-sync
+* A Custom connection pairs any OPDS catalog with any KOReader sync (kosync) server
+* With liseur-sync: settings backup per device and reading statistics across devices
 
-HIGHLIGHTS, NOTES, DICTIONARY
+Privacy
 
-* Highlights in four colours, notes and bookmarks, gathered in a per-book notebook you can export as Markdown
-* Search the whole book and jump straight to the passage
-* Footnotes open as a card over the page instead of sending you to the back
-* Definitions from Wiktionary or an offline dictionary app; online lookups stay off until you turn them on, and you pick the source
+No ads, trackers, analytics or account. Liseur only connects to the servers you add, to the dictionary site if you turn it on, and to Project Gutenberg when you browse it. It does not use Google Play services or any proprietary library.
 
-FREE SOFTWARE, BY DESIGN
-
-Liseur is built on the open Readium toolkit, with no proprietary dependencies and no Google Play services. Source code, issue tracker and documentation: https://github.com/chmouel/liseur
+MIT licensed. Source code and issue tracker: https://github.com/chmouel/liseur

@@ -1,1 +1,1 @@
-EPUB-Reader mit Sync für deinen calibre-web-, Komga- oder OPDS-Server.
+EPUB-Reader und Client für calibre-web-, Komga-, BookOrbit- und OPDS-Server
