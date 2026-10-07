@@ -18,7 +18,7 @@
   </picture>
 </p>
 
-An open-source ebook reader for Android, and a client for [calibre-web](https://github.com/janeczku/calibre-web), [Komga](https://komga.org), [BookOrbit](https://bookorbit.app), [liseur-sync](https://github.com/chmouel/liseur-sync) and any [OPDS](https://specs.opds.io/opds-1.2) catalog: EPUBs on your phone, in sync with your own book server.
+An open-source ebook reader for Android, and a client for [calibre-web](https://github.com/janeczku/calibre-web), [Komga](https://komga.org), [BookOrbit](https://bookorbit.app), [liseur-sync](https://github.com/chmouel/liseur-sync) and any [OPDS](https://specs.opds.io/opds-1.2) catalog: EPUBs on your phone or in sync with book server.
 
 <table>
   <tr>
